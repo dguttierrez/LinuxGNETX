@@ -64,6 +64,23 @@ sudo apt install -y \
 
 ## 2. Struktura projekta
 
+### 2.1 Ustvarjanje osnovnih map
+
+```bash
+# Pojdi v koren repozitorija
+cd gnetx
+
+mkdir -p build-x86/config
+mkdir -p build-arm64/config
+mkdir -p kernel/build-x86
+mkdir -p kernel/build-arm64
+mkdir -p branding/plymouth
+```
+
+`lb config` (poglavje 3) nato sam ustvari preostale podmape znotraj `config/` (package-lists, includes.chroot, hooks, bootloaders). `branding/` služi kot "master" izvor grafik, od koder jih kopiraš v `build-x86/config/includes.chroot/...` in `build-arm64/config/includes.chroot/...`.
+
+### 2.2 Pregled strukture
+
 ```
 gnetx/
 ├── build-x86/              # live-build konfig za x86_64
