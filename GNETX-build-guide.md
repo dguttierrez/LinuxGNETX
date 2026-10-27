@@ -238,6 +238,13 @@ cp gnetx/kernel/linux-image-7.0.6-gnetx-arm64_*.deb \
 
 ## 5. Paketni seznam
 
+Mapa `config/package-lists/` sicer obstaja po `lb config`, datoteko znotraj nje pa moraš ustvariti ročno (iz `gnetx/build-x86/`, za arm64 ponovi enako v `gnetx/build-arm64/`):
+
+```bash
+mkdir -p config/package-lists
+nano config/package-lists/gnetx.list.chroot
+```
+
 ### `config/package-lists/gnetx.list.chroot`
 
 ```
