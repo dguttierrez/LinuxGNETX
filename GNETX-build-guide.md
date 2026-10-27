@@ -529,9 +529,21 @@ chmod +x config/hooks/normal/0030-plymouth.hook.chroot
 
 LXDE se **ne zaganja avtomatično** ob bootu. Sistem se zažene v konzolo (TTY). Uporabnik sam zagene grafično okolje z ukazom `startx`.
 
+Vsi ukazi v poglavju 7 in 8 se izvajajo iz korena `build-x86/` (za arm64 ponovi v `build-arm64/`), enako kot v poglavju 6.
+
 ### 7.1 Onemogoči display manager
 
-#### `config/hooks/normal/0020-lxde-noauto.hook.chroot`
+Mapa `config/hooks/normal/` je morda že ustvarjena iz poglavja 6.3 — če ne (ali če si poglavji delal v drugačnem vrstnem redu), jo ustvari:
+
+```bash
+mkdir -p config/hooks/normal
+```
+
+Polna pot: **`config/hooks/normal/0020-lxde-noauto.hook.chroot`**
+
+```bash
+nano config/hooks/normal/0020-lxde-noauto.hook.chroot
+```
 
 ```bash
 #!/bin/bash
@@ -554,7 +566,15 @@ chmod +x config/hooks/normal/0020-lxde-noauto.hook.chroot
 
 ### 7.2 Konfiguracija .xinitrc za LXDE
 
-#### `config/includes.chroot/etc/skel/.xinitrc`
+```bash
+mkdir -p config/includes.chroot/etc/skel
+```
+
+Polna pot: **`config/includes.chroot/etc/skel/.xinitrc`**
+
+```bash
+nano config/includes.chroot/etc/skel/.xinitrc
+```
 
 ```bash
 #!/bin/bash
@@ -562,9 +582,21 @@ chmod +x config/hooks/normal/0020-lxde-noauto.hook.chroot
 exec startlxde
 ```
 
+```bash
+chmod +x config/includes.chroot/etc/skel/.xinitrc
+```
+
 ### 7.3 MOTD z navodilom za zagon GUI
 
-#### `config/includes.chroot/etc/motd`
+```bash
+mkdir -p config/includes.chroot/etc
+```
+
+Polna pot: **`config/includes.chroot/etc/motd`**
+
+```bash
+nano config/includes.chroot/etc/motd
+```
 
 ```
 ╔══════════════════════════════════════════════════════╗
@@ -583,7 +615,19 @@ exec startlxde
 
 ## 8. OS identifikacija
 
-#### `config/includes.chroot/etc/os-release`
+Mapa `config/includes.chroot/etc/` je bila verjetno že ustvarjena v poglavju 7.3 — če ne, jo ustvari:
+
+```bash
+mkdir -p config/includes.chroot/etc
+```
+
+Vse tri datoteke spodaj (`os-release`, `issue`, `issue.net`) gredo v to isto mapo.
+
+Polna pot: **`config/includes.chroot/etc/os-release`**
+
+```bash
+nano config/includes.chroot/etc/os-release
+```
 
 ```ini
 NAME="GNETX Linux"
@@ -600,13 +644,21 @@ VARIANT="Minimal"
 ANSI_COLOR="1;34"
 ```
 
-#### `config/includes.chroot/etc/issue`
+Polna pot: **`config/includes.chroot/etc/issue`**
+
+```bash
+nano config/includes.chroot/etc/issue
+```
 
 ```
 GNETX Linux 1.0 \n \l
 ```
 
-#### `config/includes.chroot/etc/issue.net`
+Polna pot: **`config/includes.chroot/etc/issue.net`**
+
+```bash
+nano config/includes.chroot/etc/issue.net
+```
 
 ```
 GNETX Linux 1.0
@@ -614,7 +666,17 @@ GNETX Linux 1.0
 
 ### Hook za kernel namestitev
 
-#### `config/hooks/normal/0010-kernel.hook.chroot`
+Mapa `config/hooks/normal/` je verjetno že ustvarjena iz prejšnjih poglavij — če ne:
+
+```bash
+mkdir -p config/hooks/normal
+```
+
+Polna pot: **`config/hooks/normal/0010-kernel.hook.chroot`**
+
+```bash
+nano config/hooks/normal/0010-kernel.hook.chroot
+```
 
 ```bash
 #!/bin/bash
