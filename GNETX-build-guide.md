@@ -217,9 +217,14 @@ make -j$(nproc) bindeb-pkg LOCALVERSION=-gnetx-arm64
 
 ### Kopiranje kernel .deb v live-build
 
-`.deb` paketi so po buildu v `gnetx/kernel/` (ne v `kernel/build-x86/` ali `kernel/build-arm64/`):
+`.deb` paketi so po buildu v `gnetx/kernel/` (ne v `kernel/build-x86/` ali `kernel/build-arm64/`).
+
+> **Pozor:** `lb config` sam od sebe **ne** ustvari mape `config/packages.chroot/` (za razliko od `package-lists.chroot`, `includes.chroot` ipd.). Če jo pozabiš narediti, `cp` javi zavajajočo napako `Not a directory` namesto pričakovane `No such file or directory`. Vedno jo najprej ustvari:
 
 ```bash
+mkdir -p gnetx/build-x86/config/packages.chroot
+mkdir -p gnetx/build-arm64/config/packages.chroot
+
 # x86_64
 cp gnetx/kernel/linux-image-7.0.6-gnetx_*.deb \
    gnetx/build-x86/config/packages.chroot/
