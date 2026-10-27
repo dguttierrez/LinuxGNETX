@@ -40,7 +40,6 @@ sudo apt install -y \
   xorriso \
   grub-pc-bin \
   grub-efi-amd64-bin \
-  grub-efi-arm64-bin \
   mtools \
   isolinux \
   syslinux-common \
@@ -52,6 +51,7 @@ sudo apt install -y \
   libncurses-dev \
   gcc \
   make \
+  dpkg-dev \
   git \
   wget \
   gcc-aarch64-linux-gnu \
@@ -60,6 +60,16 @@ sudo apt install -y \
   plymouth-themes
 ```
 
+> **Opomba — `grub-efi-arm64-bin`:** ta paket ni vedno na voljo na amd64 build stroju, ker je del arm64 arhitekture in zahteva dodan "foreign" arhitekturni seznam. Če buildaš arm64 ISO na amd64 stroju, ga dodaj posebej:
+> ```bash
+> sudo dpkg --add-architecture arm64
+> sudo apt update
+> sudo apt install -y grub-efi-arm64-bin
+> ```
+> Če tudi to javi napako, je najbolj zanesljivo arm64 build poganjati neposredno na arm64 stroju (ali VM), kjer je paket nativno na voljo.
+>
+> **Opomba — `dpkg-dev`:** ta paket vsebuje orodja za `make bindeb-pkg` (poglavje 4). Brez njega ukaz javi napako, da ne najde `dpkg-buildpackage`.
+
 ---
 
 ## 2. Struktura projekta
@@ -67,7 +77,8 @@ sudo apt install -y \
 ### 2.1 Ustvarjanje osnovnih map
 
 ```bash
-# Pojdi v koren repozitorija
+# Ustvari koren repozitorija in pojdi vanj
+mkdir -p gnetx
 cd gnetx
 
 mkdir -p build-x86/config
@@ -186,6 +197,8 @@ make -j$(nproc) bindeb-pkg LOCALVERSION=-gnetx
 # Nastanejo: linux-image-7.0.6-gnetx_*.deb, linux-headers-*.deb
 ```
 
+> **Pozor:** `bindeb-pkg` zgradi `.deb` pakete **eno mapo nad** `O=$(pwd)` izhodnim direktorijem — torej ne v `build-x86/`, ampak v `kernel/` (nadrejena mapa). To velja za oba builda (x86 in arm64). Upoštevaj to pri kopiranju v naslednjem koraku.
+
 ### Build za arm64 (cross-compile)
 
 ```bash
@@ -198,19 +211,21 @@ make -C ../linux-7.0.6 O=$(pwd) defconfig
 
 make -j$(nproc) Image.gz modules dtbs
 
-# Pakiranje
+# Pakiranje (nastane v gnetx/kernel/, NE v build-arm64/)
 make -j$(nproc) bindeb-pkg LOCALVERSION=-gnetx-arm64
 ```
 
 ### Kopiranje kernel .deb v live-build
 
+`.deb` paketi so po buildu v `gnetx/kernel/` (ne v `kernel/build-x86/` ali `kernel/build-arm64/`):
+
 ```bash
 # x86_64
-cp gnetx/kernel/build-x86/linux-image-7.0.6-gnetx_*.deb \
+cp gnetx/kernel/linux-image-7.0.6-gnetx_*.deb \
    gnetx/build-x86/config/packages.chroot/
 
 # arm64
-cp gnetx/kernel/build-arm64/linux-image-7.0.6-gnetx-arm64_*.deb \
+cp gnetx/kernel/linux-image-7.0.6-gnetx-arm64_*.deb \
    gnetx/build-arm64/config/packages.chroot/
 ```
 
@@ -286,8 +301,10 @@ gpicview
 
 ### 6.1 GRUB tema
 
-Ustvari direktorij:
+Celotno poglavje 6 se izvaja znotraj `live-build` konfiguracije — torej iz `gnetx/build-x86/` (za arm64 build ponovi enako v `gnetx/build-arm64/`). Najprej se postavi tja:
+
 ```bash
+cd gnetx/build-x86
 mkdir -p config/bootloaders/grub-pc/live-theme
 ```
 
