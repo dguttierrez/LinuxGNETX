@@ -320,7 +320,11 @@ cd gnetx/build-x86
 mkdir -p config/bootloaders/grub-pc/live-theme
 ```
 
-#### `config/bootloaders/grub-pc/live-theme/theme.txt`
+Spodnjo vsebino shrani v novo datoteko na poti **`config/bootloaders/grub-pc/live-theme/theme.txt`** (mapo si ustvaril v prejšnjem koraku):
+
+```bash
+nano config/bootloaders/grub-pc/live-theme/theme.txt
+```
 
 ```
 # GNETX GRUB Theme
@@ -392,11 +396,22 @@ convert -size 1920x1080 \
 
 ### 6.2 Plymouth boot splash
 
+Vse tri datoteke iz te sekcije (`gnetx.plymouth`, `gnetx.script`, `logo.png`) gredo v **isto mapo**:
+
 ```bash
 mkdir -p config/includes.chroot/usr/share/plymouth/themes/gnetx
+cd config/includes.chroot/usr/share/plymouth/themes/gnetx
 ```
 
+Od tu naprej (znotraj te mape) ustvari obe datoteki.
+
 #### `gnetx.plymouth`
+
+Polna pot: `config/includes.chroot/usr/share/plymouth/themes/gnetx/gnetx.plymouth`
+
+```bash
+nano gnetx.plymouth
+```
 
 ```ini
 [Plymouth Theme]
@@ -410,6 +425,12 @@ ScriptFile=/usr/share/plymouth/themes/gnetx/gnetx.script
 ```
 
 #### `gnetx.script`
+
+Polna pot: `config/includes.chroot/usr/share/plymouth/themes/gnetx/gnetx.script`
+
+```bash
+nano gnetx.script
+```
 
 ```javascript
 // GNETX Plymouth script
@@ -451,9 +472,35 @@ fun progress_callback(duration, progress) {
 Plymouth.SetBootProgressFunction(progress_callback);
 ```
 
+#### `logo.png`
+
+Skript zgoraj kliče `Image("logo.png")` — to pomeni, da mora biti logotip (PNG, priporočeno ~300×300 px, prozorno ozadje) v **isti mapi** kot `gnetx.plymouth` in `gnetx.script`:
+
+```bash
+# Še vedno v config/includes.chroot/usr/share/plymouth/themes/gnetx/
+cp ~/branding/logo.png .
+```
+
+Po tem se vrni nazaj v koren `build-x86/` konfiguracije za naslednje korake:
+
+```bash
+cd ../../../../../..
+# oz. preprosteje: cd ~/Projekti/gnetx/build-x86
+```
+
 ### 6.3 Hook za namestitev Plymouth teme
 
-#### `config/hooks/normal/0030-plymouth.hook.chroot`
+Mapa `config/hooks/normal/` po `lb config` ne obstaja — ustvari jo najprej:
+
+```bash
+mkdir -p config/hooks/normal
+```
+
+Polna pot naslednje datoteke: **`config/hooks/normal/0030-plymouth.hook.chroot`**
+
+```bash
+nano config/hooks/normal/0030-plymouth.hook.chroot
+```
 
 ```bash
 #!/bin/bash
