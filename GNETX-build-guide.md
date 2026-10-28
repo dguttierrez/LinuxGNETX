@@ -148,6 +148,8 @@ lb config \
 
 ### arm64
 
+> **Pozor:** `grub-pc` (uporabljen zgoraj za x86_64) je BIOS/legacy bootloader, ki na arm64 **ne deluje** — arm64 podpira samo UEFI. Zato moraš za arm64 eksplicitno nastaviti `--bootloaders grub-efi`, sicer `lb build` ali odpove, ali pa na koncu ne nastane `live-image-arm64.hybrid.iso` oziroma katerakoli druga izhodna datoteka.
+
 ```bash
 mkdir -p gnetx/build-arm64 && cd gnetx/build-arm64
 
@@ -155,6 +157,8 @@ lb config \
   --distribution bookworm \
   --architectures arm64 \
   --linux-flavours none \
+  --bootloaders grub-efi \
+  --binary-images iso-hybrid \
   --bootappend-live "boot=live components quiet splash" \
   --iso-volume "GNETX-ARM64" \
   --iso-publisher "GNETX Project" \
@@ -163,6 +167,8 @@ lb config \
   --firmware-binary false \
   --firmware-chroot false
 ```
+
+Zato je v poglavju 1 tudi potreben paket `grub-efi-arm64-bin` (glej opombo tam o `dpkg --add-architecture arm64`).
 
 ---
 
@@ -700,11 +706,13 @@ chmod +x config/hooks/normal/0010-kernel.hook.chroot
 
 ## 9. Build za x86_64
 
+> **Opomba o imenu `.deb` paketa:** `dpkg` ob `make bindeb-pkg` doda poleg `LOCALVERSION` še svojo verzijsko oznako (npr. `-1`, `-2`), zato se dejansko ime datoteke ne ujema vedno natanko z `linux-image-7.0.6-gnetx_*.deb`. Pred nadaljevanjem vedno preveri pravo ime z ukazom spodaj.
+
 ```bash
 cd gnetx/build-x86
 
-# Preveri da so kernel .deb paketi na mestu
-ls config/packages.chroot/linux-image-7.0.6-gnetx_*.deb
+# Preveri dejansko ime kernel .deb paketa (brez predpostavk o natančnem imenu)
+ls config/packages.chroot/*.deb
 
 # Zaženi build (traja 30-90 min odvisno od stroja)
 sudo lb build 2>&1 | tee ../build-x86.log
@@ -730,12 +738,15 @@ sudo lb clean --binary
 ```bash
 cd gnetx/build-arm64
 
-ls config/packages.chroot/linux-image-7.0.6-gnetx-arm64_*.deb
+# Preveri dejansko ime kernel .deb paketa
+ls config/packages.chroot/*.deb
 
 sudo lb build 2>&1 | tee ../build-arm64.log
 
 ls -lh live-image-arm64.hybrid.iso
 ```
+
+> **Če `live-image-arm64.hybrid.iso` ne obstaja:** preveri `../build-arm64.log` za napake. Najpogostejši vzrok je manjkajoč `--bootloaders grub-efi` v `lb config` (poglavje 3) — brez njega build na arm64 tiho odpove ali ne ustvari pričakovane izhodne datoteke. Ponovi `lb config` s pravim ukazom, nato `sudo lb clean --all` in `sudo lb build` znova.
 
 ### Opomba za arm64
 
