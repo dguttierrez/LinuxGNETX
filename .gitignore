@@ -1,0 +1,60 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+*.swp
+*.swo
+*.tmp
+*.bak
+*.log
+*.pid
+
+# Editorji
+.vscode/
+.idea/
+*.code-workspace
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Skrivnosti in gesla
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.secret
+secrets/
+credentials/
+id_rsa
+id_ed25519
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Ansible
+*.retry
+vault-password*
+.vault_pass*
+
+# Začasne datoteke
+cache/
+tmp/
+temp/
