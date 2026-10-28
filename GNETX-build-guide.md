@@ -388,11 +388,15 @@ desktop-image: "background.png"
 
 #### GRUB ozadje
 
-Ustvari PNG `background.png` (1920×1080) z logotipom. Primer z ImageMagick:
+Ustvari PNG `background.png` (1920×1080) z logotipom. Namesti ImageMagick, če ga še nimaš:
+```bash
+sudo apt install -y imagemagick
+```
+
+Primer ukaza — **pomembno:** vedno se začne z `xc:'barva'`, ki ustvari osnovno platno; brez tega `convert`/`-annotate` nimata na kaj pisati in javita napako `no images defined`:
 
 ```bash
-convert -size 1920x1080 \
-  -background '#0D1F3C' \
+convert -size 1920x1080 xc:'#0D1F3C' \
   -fill '#1A3A6B' \
   -draw "polygon 960,200 1110,283 1110,450 960,533 810,450 810,283" \
   -fill '#2A7FE8' \
@@ -400,6 +404,12 @@ convert -size 1920x1080 \
   -gravity center \
   -annotate +0-200 'GNETX' \
   config/bootloaders/grub-pc/live-theme/background.png
+```
+
+Preveri da je datoteka res veljavna slika (ne besedilo z napako):
+```bash
+file config/bootloaders/grub-pc/live-theme/background.png
+# pričakovano: PNG image data, 1920 x 1080, ...
 ```
 
 ### 6.2 Plymouth boot splash
@@ -672,6 +682,25 @@ nano config/includes.chroot/etc/issue.net
 GNETX Linux 1.0
 ```
 
+### Hostname
+
+`lb config` v tej verziji `live-build` ne pozna parametra `--hostname` (javi `lb config: unrecognized option '--hostname'`). Hostname nastavi namesto tega prek `includes.chroot`:
+
+```bash
+echo "gnetx" > config/includes.chroot/etc/hostname
+
+cat > config/includes.chroot/etc/hosts << 'EOF'
+127.0.0.1   localhost
+127.0.1.1   gnetx
+
+::1         localhost ip6-localhost ip6-loopback
+ff02::1     ip6-allnodes
+ff02::2     ip6-allrouters
+EOF
+```
+
+Brez tega bo sistem privzeto uporabljal hostname `debian` (iz osnovnega bootstrap-a), ne glede na ostali branding.
+
 ### Hook za kernel namestitev
 
 Mapa `config/hooks/normal/` je verjetno že ustvarjena iz prejšnjih poglavij — če ne:
@@ -693,13 +722,37 @@ set -e
 # Namesti custom kernel .deb (je bil kopiran v packages.chroot/)
 # live-build ga namesti samodejno iz config/packages.chroot/
 
-# Onemogoči privzete Debian kernele
-apt-get remove --purge -y linux-image-amd64 linux-image-arm64 2>/dev/null || true
+# Ustvari initrd za GNETX kernel, če še ne obstaja.
+# Ob prvotni namestitvi kernel .deb-a (faza packages.chroot) paket live-boot
+# še ni nameščen — initrd se takrat NE generira pravilno za "live" sistem.
+# Ta hook teče ŠELE PO namestitvi paketnega seznama (live-boot, initramfs-tools),
+# zato je to pravi trenutek za generiranje.
+for kver in $(ls /boot 2>/dev/null | grep '^vmlinuz-.*gnetx' | sed 's/^vmlinuz-//'); do
+  if [ ! -f "/boot/initrd.img-${kver}" ]; then
+    echo "Generiram initrd za kernel: ${kver}"
+    update-initramfs -c -k "${kver}"
+  fi
+done
+
+# Dinamično najdi in odstrani vse nameščene kernel pakete RAZEN gnetx custom kernela.
+# Fiksno ime "linux-image-amd64"/"linux-image-arm64" ni dovolj, ker to je samo
+# meta-paket — odstrani ga, ne pa tudi dejanskega nameščenega kernela (npr.
+# linux-image-6.12.113+deb13-arm64), ki ostane kot osiroteli paket.
+for pkg in $(dpkg -l | awk '/^ii/{print $2}' | grep '^linux-image-' | grep -v 'gnetx'); do
+  apt-get remove --purge -y "$pkg"
+done
+
+# Odstrani morebitne osirotele odvisnosti (header pakete ipd.)
+apt-get autoremove --purge -y
 ```
 
 ```bash
 chmod +x config/hooks/normal/0010-kernel.hook.chroot
 ```
+
+> **Pozor — manjkajoč `initrd.img` na ISO-ju (`error: file '/live/initrd.img-...' not found` v GRUB-u):** to pomeni, da `update-initramfs` za tvoj kernel nikoli ni bil zagnan. Preveri v chroot-u: `ls chroot/boot/ | grep initrd` — če vidiš samo `vmlinuz-*`, brez `initrd.img-*`, zgornji del hooka (generacija initrd) manjka ali ni deloval. Preveri tudi build log za morebitne napake pri `update-initramfs` med izvajanjem hooka.
+
+> **Pozor — preveri, da je star kernel res odstranjen:** po buildu lahko preveriš v chrootu z `sudo chroot chroot/ dpkg -l | grep linux-image` — videti bi moral **samo** svoj `gnetx` kernel. Če GRUB meni po zagonu še vedno kaže privzeti Debian kernel poleg tvojega, je hook verjetno odpovedal tiho (npr. zaradi vrstnega reda namestitve) — v tem primeru preveri build log za morebitne napake pri izvajanju tega hooka.
 
 > **Pozor — `update-grub` tukaj ne uporabljaj.** V izvirni različici tega hooka je bil na koncu še klic `update-grub`, kar v minimalnem chroot sistemu javi napako `update-grub: command not found`, ker paket `grub-pc`/`grub-efi-arm64` (ki vsebuje ta ukaz) ni del paketnega seznama iz poglavja 5. To je pravzaprav pravilno — `update-grub` tu sploh ni potreben: za **live** ISO (sistem, ki se zažene iz pomnilnika, ne z diska) GRUB zagonski meni generira `live-build` sam prek konfiguracije v poglavju 6 (`theme.txt`), ne prek `update-grub` znotraj chroot-a. Ta ukaz bi bil relevanten šele, če bi GNETX kasneje namestil trajno na trdi disk — kar presega obseg tega vodiča.
 

@@ -2,13 +2,17 @@
 # ============================================================
 #  GNETX Linux — Post-install skript
 #  HAM radio orodja + Varnostna orodja
+#  Ciljna distribucija: Debian 13 (trixie)
 #  Avtor: GNETX Project | S51DG
-#  Datum: 2026-05-14
+#  Datum: 2026-10-28
 # ============================================================
 # Zagon: sudo bash gnetx-postinstall.sh
 # ============================================================
 
 set -e
+
+# --- Zaznaj Debian codename (za backports fallback ipd.) ---
+DEBIAN_CODENAME=$(. /etc/os-release 2>/dev/null; echo "${VERSION_CODENAME:-trixie}")
 
 # --- Barve za izpis ---
 RED='\033[0;31m'
@@ -102,11 +106,11 @@ section "HAM Radio — WSJT-X (FT8, FT4, WSPR, JT65...)"
 apt-get install -y wsjtx >> "$LOGFILE" 2>&1 \
   && ok "WSJT-X nameščen" \
   || {
-    warn "WSJT-X ni v repotu — poskušam iz backports"
-    echo "deb http://deb.debian.org/debian bookworm-backports main" \
+    warn "WSJT-X ni v glavnem repoju — poskušam iz ${DEBIAN_CODENAME}-backports"
+    echo "deb http://deb.debian.org/debian ${DEBIAN_CODENAME}-backports main" \
       > /etc/apt/sources.list.d/backports.list
     apt-get update -y >> "$LOGFILE" 2>&1
-    apt-get install -y -t bookworm-backports wsjtx >> "$LOGFILE" 2>&1 \
+    apt-get install -y -t "${DEBIAN_CODENAME}-backports" wsjtx >> "$LOGFILE" 2>&1 \
       && ok "WSJT-X nameščen iz backports" \
       || warn "WSJT-X ni dostopen — namesti ročno iz https://wsjt.sourceforge.io"
   }

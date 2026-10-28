@@ -2,6 +2,7 @@
 # ============================================================
 #  GNETX Linux — Wine HAM add-on
 #  Winlink Express + VARA FM (Wine) + Pat (nativno, povezan na VARA)
+#  Ciljna distribucija: Debian 13 (trixie)
 #  Callsign: S51DG
 # ============================================================
 # Zagon:  sudo bash gnetx-wine-ham.sh [mapa_z_installerji]
