@@ -1,6 +1,6 @@
 # GNETX Linux — Celoten vodič za izgradnjo distribucije
 
-> Debian-based · Kernel 7.0.6 · LXDE (ročen zagon) · x86_64 + arm64
+> Debian 13 (Trixie) based · Kernel 7.0.6 · LXDE (ročen zagon) · x86_64 + arm64
 
 ---
 
@@ -26,7 +26,7 @@
 ## 1. Zahteve in priprava okolja
 
 ### Build stroj
-- Debian 12 (Bookworm) ali Ubuntu 24.04
+- Debian 13 (Trixie) ali Ubuntu 24.04
 - Vsaj 40 GB prostega diska
 - Vsaj 8 GB RAM
 - Za cross-compile arm64: dodatni `gcc-aarch64-linux-gnu`
@@ -136,7 +136,7 @@ gnetx/
 mkdir -p gnetx/build-x86 && cd gnetx/build-x86
 
 lb config \
-  --distribution bookworm \
+  --distribution trixie \
   --architectures amd64 \
   --linux-flavours amd64 \
   --bootappend-live "boot=live components quiet splash persistence" \
@@ -158,7 +158,7 @@ lb config \
 mkdir -p gnetx/build-arm64 && cd gnetx/build-arm64
 
 lb config \
-  --distribution bookworm \
+  --distribution trixie \
   --architectures arm64 \
   --linux-flavours arm64 \
   --bootloaders grub-efi \
