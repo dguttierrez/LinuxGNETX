@@ -80,7 +80,17 @@ qemu-system-aarch64 -machine virt -cpu cortex-a72 -m 2G \
 
 ## Licenca
 
-TODO — določi licenco pred javno objavo repozitorija.
+LinuxGNETX je odprtokodni projekt, objavljen pod licenco **GNU General Public License v3.0 (GPLv3)**.
+
+Projekt lahko prosto uporabljate, preučujete, spreminjate in distribuirate v skladu s pogoji licence GPLv3.
+
+Ob distribuciji spremenjenih različic je treba upoštevati pogoje GPLv3, vključno z zagotavljanjem ustrezne izvorne kode.
+
+Programska oprema je na voljo **brez kakršnega koli jamstva**.
+
+Celotno besedilo licence je na voljo v datoteki [LICENSE](LICENSE).
+
+Copyright © 2026 Davor Guttierrez.
 
 ## Kontakt
 
