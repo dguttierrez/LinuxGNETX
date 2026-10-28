@@ -19,6 +19,7 @@
 11. [Testiranje z QEMU](#11-testiranje-z-qemu)
 12. [Distribucija ISO](#12-distribucija-iso)
 13. [Persistenca — obdrži spremembe po izklopu](#13-persistenca--obdrži-spremembe-po-izklopu)
+14. [Dodatek A: Checklist za ponovno izgradnjo od začetka](#dodatek-a-checklist-za-ponovno-izgradnjo-od-začetka)
 
 ---
 
@@ -314,7 +315,13 @@ plymouth-themes
 # LXDE dodatki
 mousepad
 gpicview
+
+# VMware integracija (samodejna prilagoditev ločljivosti, souporaba odložišča, drag&drop)
+open-vm-tools
+open-vm-tools-desktop
 ```
+
+> **Opomba — `open-vm-tools-desktop`:** ta paket je nujen, če GNETX testiraš v VMware (Fusion/Workstation) in želiš, da se ločljivost zaslona samodejno prilagaja velikosti VM okna. Brez njega ostane zaslon na fiksni nizki ločljivosti ne glede na velikost okna. Po namestitvi ga je treba tudi omogočiti kot storitev — glej opombo ob koncu poglavja 7.
 
 ---
 
@@ -576,12 +583,31 @@ systemctl disable sddm 2>/dev/null || true
 # Nastavi multi-user.target kot privzeti (brez GUI)
 systemctl set-default multi-user.target
 
+# Omogoči open-vm-tools storitev (samodejna ločljivost v VMware)
+systemctl enable open-vm-tools 2>/dev/null || true
+
 echo "LXDE autostart je onemogočen. Za zagon GUI vtipkaj: startx"
 ```
 
 ```bash
 chmod +x config/hooks/normal/0020-lxde-noauto.hook.chroot
 ```
+
+> **Pozor — polna ločljivost v VMware:** `open-vm-tools-desktop` (dodan v poglavju 5) zagotovi samodejno prilagajanje ločljivosti velikosti VM okna, zgornja vrstica pa ob zagonu omogoči njegovo storitev. Poleg tega kernel potrebuje vgrajen gonilnik za navidezno grafiko — na arm64 VM-jih (npr. VMware Fusion na Apple Silicon) gre običajno za **virtio-gpu**, na x86 VM-jih (VMware Workstation) pa za **vmwgfx**. Preveri v `.config` med kompajliranjem kernela (poglavje 4):
+> ```bash
+> grep -E "CONFIG_DRM_VIRTIO_GPU|CONFIG_DRM_VMWGFX|CONFIG_DRM=" .config
+> ```
+> Če manjka, dodaj pred gradnjo:
+> ```bash
+> ../linux-7.0.6/scripts/config --file .config \
+>   --enable CONFIG_DRM \
+>   --enable CONFIG_DRM_KMS_HELPER \
+>   --enable CONFIG_FB \
+>   --enable CONFIG_DRM_VIRTIO_GPU \
+>   --enable CONFIG_DRM_VMWGFX
+> make -C ../linux-7.0.6 O=$(pwd) olddefconfig
+> ```
+> Brez tega gonilnika ostane zaslon na fiksni nizki ločljivosti ne glede na nameščen `open-vm-tools`. Ročen test ločljivosti v že zagnanem sistemu: `xrandr` (seznam) in `xrandr --output <izhod> --mode <ločljivost>` (nastavitev).
 
 ### 7.2 Konfiguracija .xinitrc za LXDE
 
@@ -1003,6 +1029,161 @@ live-build config
 GNETX-1.0-x86_64.iso
 GNETX-1.0-arm64.iso
 ```
+
+---
+
+## Dodatek A: Checklist za ponovno izgradnjo od začetka
+
+Ta razdelek strne vse, kar se je izkazalo za potrebno med dejansko izgradnjo (arm64, trixie), v en zaporeden postopek — brez ponavljanja razlag iz zgornjih poglavij. Uporabi ga kot hiter vodnik, poglavja zgoraj pa za kontekst/razlago posameznega koraka.
+
+### A.1 Priprava (enkrat)
+
+```bash
+mkdir -p ~/Projekti/gnetx/{build-x86,build-arm64,kernel,branding}
+cd ~/Projekti/gnetx
+
+sudo apt update
+sudo apt install -y live-build debootstrap squashfs-tools xorriso \
+  grub-pc-bin grub-efi-amd64-bin mtools isolinux syslinux-common \
+  bc bison flex libelf-dev libssl-dev libncurses-dev gcc make dpkg-dev \
+  git wget gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
+  plymouth plymouth-themes imagemagick
+
+# Samo za arm64 build na gostitelju, ki ni arm64:
+sudo dpkg --add-architecture arm64 && sudo apt update
+sudo apt install -y grub-efi-arm64-bin
+```
+
+### A.2 Kernel — prenos in osnovna priprava
+
+```bash
+cd ~/Projekti/gnetx/kernel
+wget https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.0.6.tar.xz
+tar xf linux-7.0.6.tar.xz
+
+mkdir build-arm64 && cd build-arm64
+export ARCH=arm64
+export CROSS_COMPILE=aarch64-linux-gnu-
+make -C ../linux-7.0.6 O=$(pwd) defconfig
+```
+
+### A.3 Kernel config — vsi popravki naenkrat (ključno, prihrani 5+ krogov kompajliranja)
+
+```bash
+../linux-7.0.6/scripts/config --file .config \
+  --enable CONFIG_BLK_DEV_SR \
+  --enable CONFIG_ISO9660_FS \
+  --enable CONFIG_JOLIET \
+  --enable CONFIG_SCSI_VIRTIO \
+  --set-val CONFIG_OVERLAY_FS y \
+  --enable CONFIG_ATA_AHCI \
+  --enable CONFIG_SATA_AHCI \
+  --enable CONFIG_SQUASHFS_XZ \
+  --enable CONFIG_SQUASHFS_ZSTD \
+  --enable CONFIG_SQUASHFS_LZ4 \
+  --enable CONFIG_SQUASHFS_LZO \
+  --enable CONFIG_SQUASHFS_XATTR \
+  --set-val CONFIG_DRM y \
+  --enable CONFIG_DRM_KMS_HELPER \
+  --enable CONFIG_FB \
+  --enable CONFIG_DRM_VIRTIO_GPU \
+  --enable CONFIG_DRM_VMWGFX
+
+make -C ../linux-7.0.6 O=$(pwd) olddefconfig
+
+# Potrdi vse naenkrat
+grep -E "CONFIG_BLK_DEV_SR=|CONFIG_ISO9660_FS=|CONFIG_OVERLAY_FS=|CONFIG_SCSI_VIRTIO=|CONFIG_SQUASHFS_XZ=|CONFIG_SQUASHFS_ZSTD=|CONFIG_DRM=|CONFIG_DRM_VIRTIO_GPU=" .config
+```
+
+Za x86 build ponovi enako v `kernel/build-x86/` (z `x86_64_defconfig` namesto `defconfig`, brez `ARCH`/`CROSS_COMPILE` spremenljivk) — iste nastavitve veljajo enako.
+
+### A.4 Zgradi kernel in ga pripravi za live-build
+
+```bash
+make -j$(nproc) Image.gz modules dtbs
+make -j$(nproc) bindeb-pkg LOCALVERSION=-gnetx-arm64
+
+mkdir -p ../../build-arm64/config/packages.chroot
+cp ../*.deb ../../build-arm64/config/packages.chroot/
+```
+
+### A.5 `lb config` — preverjen delujoč ukaz (arm64, trixie)
+
+```bash
+cd ~/Projekti/gnetx/build-arm64
+
+lb config \
+  --distribution trixie \
+  --architectures arm64 \
+  --linux-flavours arm64 \
+  --bootloaders grub-efi \
+  --binary-images iso-hybrid \
+  --bootappend-live "boot=live components quiet splash persistence" \
+  --iso-volume "GNETX-ARM64" \
+  --iso-publisher "GNETX Project" \
+  --iso-application "GNETX Linux arm64" \
+  --memtest none \
+  --firmware-binary false \
+  --firmware-chroot false
+```
+
+Shrani ta ukaz v `configure.sh` (glej poglavje 9), ker ga boš po vsakem `lb clean --all` moral znova zagnati.
+
+### A.6 `config/` datoteke — vse na enem mestu
+
+```bash
+mkdir -p config/package-lists config/hooks/normal \
+  config/includes.chroot/etc/skel \
+  config/includes.chroot/usr/share/plymouth/themes/gnetx \
+  config/bootloaders/grub-pc/live-theme
+```
+
+Nato ustvari (vsebine so v poglavjih 5–8):
+- `config/package-lists/gnetx.list.chroot` — paketni seznam, **vključno z `open-vm-tools` in `open-vm-tools-desktop`**
+- `config/includes.chroot/etc/os-release`, `issue`, `issue.net`, `hostname`, `hosts`, `motd`
+- `config/includes.chroot/etc/skel/.xinitrc` (+ `chmod +x`)
+- `config/includes.chroot/usr/share/plymouth/themes/gnetx/gnetx.plymouth`, `gnetx.script`, `logo.png`
+- `config/bootloaders/grub-pc/live-theme/theme.txt`, `background.png` (`convert -size 1920x1080 xc:'#0D1F3C' ...`)
+- `config/hooks/normal/0010-kernel.hook.chroot` (generira initrd + odstrani stare kernele, **brez** `update-grub`)
+- `config/hooks/normal/0020-lxde-noauto.hook.chroot` (onemogoči display managerje + `systemctl enable open-vm-tools`)
+- `config/hooks/normal/0030-plymouth.hook.chroot`
+
+```bash
+chmod +x config/hooks/normal/*.hook.chroot
+```
+
+### A.7 Build
+
+```bash
+sudo lb clean --all
+sudo rm -rf cache/          # obvezno, če karkoli od distribucije/arhitekture spreminjaš
+./configure.sh
+sudo lb build 2>&1 | tee ../build-arm64.log
+```
+
+### A.8 Preverjanje pred testiranjem v VM
+
+```bash
+ls chroot/boot/ | grep -E 'vmlinu|initrd'   # oboje mora obstajati
+sudo chroot chroot/ dpkg -l | grep linux-image   # samo gnetx kernel, brez privzetega
+cat chroot/boot/config-7.0.6-gnetx-arm64 | grep -E "CONFIG_SQUASHFS_XZ=|CONFIG_DRM_VIRTIO_GPU="
+ls -lh live-image-arm64.hybrid.iso
+```
+
+### Pasti, na katere ne pozabi (strnjeno)
+
+| Past | Rešitev |
+|---|---|
+| `lb clean --all` briše `config` stage marker | Vedno znova zaženi `lb config` (ali `./configure.sh`) pred vsakim `lb build` po `clean --all` |
+| `cache/` preživi `lb clean --all` | Pri spremembi distribucije/arhitekture dodatno `sudo rm -rf cache/` |
+| `config/packages.chroot/`, `config/package-lists/`, `config/hooks/normal/` se ne ustvarijo same | Vedno `mkdir -p` pred prvim zapisom vanje |
+| `bindeb-pkg` zgradi `.deb` eno mapo **nad** `O=$(pwd)` | `.deb` išči v `kernel/`, ne v `kernel/build-arm64/` |
+| `--linux-flavours` nikoli ne izpuščaj | Brez njega avtodetekcija na nekaterih gostiteljih vrne dobesedno `none` → `E: Unable to locate package linux-image-none` |
+| arm64 potrebuje `--bootloaders grub-efi` | `grub-pc` je samo za x86 BIOS |
+| `update-grub` v kernel hooku | Ne uporabljaj — za live ISO ni potreben in javi napako |
+| `convert` brez `xc:'barva'` na začetku | Javi `no images defined` |
+| Paket `lxterm` ne obstaja | Pravo ime je `lxterminal` |
+| `linux-image-arm64` je samo meta-paket | Odstrani dejanski nameščen kernel (`dpkg -l \| grep linux-image`), ne samo meta-paketa |
 
 ---
 

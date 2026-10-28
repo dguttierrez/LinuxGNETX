@@ -2,7 +2,7 @@
 
 Minimalna Debian-based Linux distribucija s customiziranim kernelom, LXDE grafičnim okoljem (brez avtomatičnega zagona) in post-install skriptami za HAM radio ter varnostna orodja.
 
-- **Baza:** Debian (bookworm)
+- **Baza:** Debian 13 (trixie)
 - **Kernel:** 7.0.6
 - **Arhitekturi:** x86_64, arm64
 - **Grafično okolje:** LXDE (zagon ročno, ukaz `startx`)
