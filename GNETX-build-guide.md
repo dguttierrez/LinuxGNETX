@@ -136,7 +136,7 @@ mkdir -p gnetx/build-x86 && cd gnetx/build-x86
 lb config \
   --distribution bookworm \
   --architectures amd64 \
-  --linux-flavours none \
+  --linux-flavours amd64 \
   --bootappend-live "boot=live components quiet splash" \
   --iso-volume "GNETX" \
   --iso-publisher "GNETX Project" \
@@ -145,6 +145,8 @@ lb config \
   --firmware-binary false \
   --firmware-chroot false
 ```
+
+> **Pozor — `--linux-flavours` vedno nastavi eksplicitno, nikoli ga ne izpusti.** Brez tega parametra `lb config` privzeto uporabi `autodetected`, ki na nekaterih sistemih (predvsem v kontejnerjih ali VM-jih, kjer `uname -r` gostitelja ne ustreza standardnemu vzorcu `*-amd64`/`*-arm64`) napačno razreši vrednost v dobesedno besedo `none`. Live-build to nato vstavi v ime paketa in poskuša namestiti neobstoječ `linux-image-none`, kar build podre z napako `E: Unable to locate package linux-image-none` — in ker gre za napako avtodetekcije, se ponovi tudi po popolnem `lb clean --all` ali brisanju `config/` mape, dokler vrednosti ne nastaviš ročno. Privzeti kernel (`linux-image-amd64` / `linux-image-arm64`) se med buildom normalno namesti, nato pa ga hook `0010-kernel.hook.chroot` (poglavje 8) ob koncu odstrani in zamenja s tvojim custom kernelom.
 
 ### arm64
 
@@ -156,7 +158,7 @@ mkdir -p gnetx/build-arm64 && cd gnetx/build-arm64
 lb config \
   --distribution bookworm \
   --architectures arm64 \
-  --linux-flavours none \
+  --linux-flavours arm64 \
   --bootloaders grub-efi \
   --binary-images iso-hybrid \
   --bootappend-live "boot=live components quiet splash" \
@@ -291,7 +293,7 @@ lxde-common
 lxpanel
 pcmanfm
 lxappearance
-lxterm
+lxterminal
 lxtask
 
 # Orodja
@@ -693,14 +695,13 @@ set -e
 
 # Onemogoči privzete Debian kernele
 apt-get remove --purge -y linux-image-amd64 linux-image-arm64 2>/dev/null || true
-
-# Posodobi GRUB
-update-grub
 ```
 
 ```bash
 chmod +x config/hooks/normal/0010-kernel.hook.chroot
 ```
+
+> **Pozor — `update-grub` tukaj ne uporabljaj.** V izvirni različici tega hooka je bil na koncu še klic `update-grub`, kar v minimalnem chroot sistemu javi napako `update-grub: command not found`, ker paket `grub-pc`/`grub-efi-arm64` (ki vsebuje ta ukaz) ni del paketnega seznama iz poglavja 5. To je pravzaprav pravilno — `update-grub` tu sploh ni potreben: za **live** ISO (sistem, ki se zažene iz pomnilnika, ne z diska) GRUB zagonski meni generira `live-build` sam prek konfiguracije v poglavju 6 (`theme.txt`), ne prek `update-grub` znotraj chroot-a. Ta ukaz bi bil relevanten šele, če bi GNETX kasneje namestil trajno na trdi disk — kar presega obseg tega vodiča.
 
 ---
 
@@ -731,6 +732,18 @@ sudo lb clean --all
 sudo lb clean --binary
 ```
 
+> **Pozor:** `sudo lb clean --all` pobriše tudi `config` fazo (stage marker). Če po njem zaženeš `sudo lb build` brez ponovnega `lb config`, dobiš napako:
+> ```
+> E: the following stage is required to be done first: config
+> ```
+> Po vsakem `lb clean --all` moraš **pred** `lb build` vedno znova zagnati celoten `lb config` ukaz (iz poglavja 3). `lb clean --binary` tega problema nima, ker ne briše `config` faze.
+
+> **Pozor — `cache/` mapa preživi `lb clean --all`:** zaradi `LB_CACHE_STAGES="bootstrap"` (privzeta nastavitev) `live-build` predpomni osnovni bootstrap sistem v mapo `cache/`, da pospeši ponovne builde. `lb clean --all` te mape **ne počisti**. Če si med razvojem kdaj spremenil `--distribution` (npr. iz `bookworm` v `trixie`), se bo ob vsakem naslednjem buildu v log izpisalo `P: Restoring bootstrap stage from cache...` in uporabil se bo **star**, prvotno zgrajen osnovni sistem — ne glede na trenutno `config/`. To povzroči mešanje verzij paketov (npr. `E: squashfs-tools depends libc6 >= 2.38 but 2.36-... is to be installed`). Če si kadarkoli spremenil distribucijo, arhitekturo ali osnovne nastavitve bootstrap-a, vedno dodatno pobriši cache:
+> ```bash
+> sudo rm -rf cache/
+> ```
+> Po tem mora log ob naslednjem `lb build` pokazati `P: Begin bootstrapping system...` **brez** vrstice `W: Skipping bootstrap, already done`.
+
 ---
 
 ## 10. Build za arm64
@@ -747,6 +760,13 @@ ls -lh live-image-arm64.hybrid.iso
 ```
 
 > **Če `live-image-arm64.hybrid.iso` ne obstaja:** preveri `../build-arm64.log` za napake. Najpogostejši vzrok je manjkajoč `--bootloaders grub-efi` v `lb config` (poglavje 3) — brez njega build na arm64 tiho odpove ali ne ustvari pričakovane izhodne datoteke. Ponovi `lb config` s pravim ukazom, nato `sudo lb clean --all` in `sudo lb build` znova.
+
+> **Če dobiš `E: Unable to locate package linux-image-none`:** dejanska vrednost `--linux-flavours` se ne shrani v `config/common`, ampak v **`config/chroot`** pod spremenljivko `LB_LINUX_FLAVOURS_WITH_ARCH`. Preveri in po potrebi popravi neposredno, brez ponovnega `lb config`:
+> ```bash
+> grep "LB_LINUX_FLAVOURS_WITH_ARCH" config/chroot
+> sed -i 's/^LB_LINUX_FLAVOURS_WITH_ARCH=.*/LB_LINUX_FLAVOURS_WITH_ARCH="arm64"/' config/chroot
+> ```
+> (za x86_64 build uporabi `"amd64"` namesto `"arm64"`)
 
 ### Opomba za arm64
 
