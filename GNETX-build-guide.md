@@ -18,6 +18,7 @@
 10. [Build za arm64](#10-build-za-arm64)
 11. [Testiranje z QEMU](#11-testiranje-z-qemu)
 12. [Distribucija ISO](#12-distribucija-iso)
+13. [Persistenca — obdrži spremembe po izklopu](#13-persistenca--obdrži-spremembe-po-izklopu)
 
 ---
 
@@ -137,7 +138,7 @@ lb config \
   --distribution bookworm \
   --architectures amd64 \
   --linux-flavours amd64 \
-  --bootappend-live "boot=live components quiet splash" \
+  --bootappend-live "boot=live components quiet splash persistence" \
   --iso-volume "GNETX" \
   --iso-publisher "GNETX Project" \
   --iso-application "GNETX Linux" \
@@ -161,7 +162,7 @@ lb config \
   --linux-flavours arm64 \
   --bootloaders grub-efi \
   --binary-images iso-hybrid \
-  --bootappend-live "boot=live components quiet splash" \
+  --bootappend-live "boot=live components quiet splash persistence" \
   --iso-volume "GNETX-ARM64" \
   --iso-publisher "GNETX Project" \
   --iso-application "GNETX Linux arm64" \
@@ -917,6 +918,72 @@ sudo dd if=gnetx/build-arm64/live-image-arm64.hybrid.iso \
 cp gnetx/build-x86/live-image-amd64.hybrid.iso   GNETX-1.0-x86_64.iso
 cp gnetx/build-arm64/live-image-arm64.hybrid.iso  GNETX-1.0-arm64.iso
 ```
+
+---
+
+## 13. Persistenca — obdrži spremembe po izklopu
+
+Privzeto je GNETX, kot vsak live sistem, popolnoma brez spomina: spremembe (nameščeni paketi iz `gnetx-postinstall.sh`, konfiguracije, datoteke) se ob izklopu izgubijo, ker se sistem zaganja iz `squashfs` + RAM overlay-a. `--bootappend-live` smo v poglavju 3 že dopolnili z besedo `persistence`, kar pomeni, da bo `live-boot` ob vsakem zagonu **samodejno poiskal** particijo ali datoteko z oznako `persistence` in vanjo shranjeval spremembe — če je ne najde, se sistem obnaša kot prej (brez napake, samo brez obstojnosti).
+
+### 13.1 Na pravem USB ključku
+
+```bash
+lsblk   # poišči svoj USB ključek, npr. /dev/sdb
+
+# Zapiši GNETX ISO na prvi del ključka (kot doslej)
+sudo dd if=GNETX-1.0-x86_64.iso of=/dev/sdb bs=4M status=progress oflag=sync
+
+# Preveri koliko prostora je ostalo neuporabljenega na ključku
+sudo fdisk -l /dev/sdb
+
+# Ustvari novo particijo v preostalem prostoru (primer: celoten preostanek)
+sudo fdisk /dev/sdb
+# v fdisk: n (nova particija) -> privzete vrednosti za začetek/konec -> w (zapiši)
+
+# Formatiraj novo particijo z ext4 in OBVEZNO oznako "persistence"
+sudo mkfs.ext4 -L persistence /dev/sdb2
+
+# Montiraj in dodaj konfiguracijsko datoteko
+sudo mkdir -p /mnt/gnetx-persist
+sudo mount /dev/sdb2 /mnt/gnetx-persist
+echo "/ union" | sudo tee /mnt/gnetx-persist/persistence.conf
+sudo umount /mnt/gnetx-persist
+```
+
+`/ union` pomeni: celoten koren datotečnega sistema je persistenten (vse spremembe povsod). Za bolj selektivno persistenco (npr. samo `/home` in `/etc`) bi namesto tega v `persistence.conf` navedel posamezne poti.
+
+### 13.2 Testiranje v VMware (tvoj trenutni primer)
+
+Ker trenutno testiraš prek VMware z ISO-jem kot navideznim CD pogonom, prava USB persistenca ne pride v poštev — CD/ISO je vedno bralen samo. Namesto tega v VMware dodaj **drug navidezen trdi disk**, ki bo služil kot persistenčna naprava:
+
+1. V VMware: **VM nastavitve → Add → Hard Disk** → ustvari nov virtualni disk (npr. 8 GB, SCSI ali VirtIO)
+2. Zaženi GNETX live sistem (iz ISO-ja kot doslej)
+3. Znotraj zagnanega sistema poišči in formatiraj nov disk:
+
+```bash
+lsblk   # novi disk bo npr. /dev/sdb (brez particij)
+
+sudo mkfs.ext4 -L persistence /dev/sdb
+```
+
+4. Ugasni VM in znova zaženi — `live-boot` bo zdaj samodejno zaznal in uporabil ta disk kot persistenčno shrambo, brez dodatnega `persistence.conf` (privzeto se celoten `/` naredi persistenten, če `persistence.conf` ne obstaja — sicer upošteva vsebino te datoteke, če jo dodaš enako kot v 13.1).
+
+### 13.3 Preveri, da persistenca deluje
+
+```bash
+# Po prvem zagonu s persistenčnim diskom namesti nekaj testnega
+sudo apt install -y htop
+
+# Izklopi VM/sistem (ne restart iz menija, dejanski shutdown)
+sudo poweroff
+
+# Znova zaženi in preveri
+which htop   # mora obstajati, če je persistenca delovala
+```
+
+Če `htop` po ponovnem zagonu ne obstaja več, persistenčna naprava ni bila pravilno zaznana — preveri, da ima oznako (label) točno `persistence` (`sudo e2label /dev/sdb` za preverjanje/popravek) in da ISO dejansko vsebuje `persistence` v `--bootappend-live` (preveri v `chroot/boot/grub/grub.cfg` ali v samem GRUB meniju med zagonom, kje bi moral videti `persistence` kot del zagonskih parametrov).
+
+> **Opomba:** Ker `gnetx-postinstall.sh` in `gnetx-wine-ham.sh` namestita precej paketov (nekaj GB za Metasploit, Wine, WSJT-X ipd.), naj bo persistenčna particija/disk dovolj velika — priporočam vsaj 15–20 GB, ne samo 8 GB iz primera zgoraj.
 
 ---
 
