@@ -95,10 +95,12 @@ apt-get install -y \
 if [[ $DO_HAM -eq 1 ]]; then
 
 section "HAM Radio — Hamlib (rig control)"
+# Paket je libhamlib-utils (ne hamlib-utils). Runtime knjižnico
+# (libhamlib4 na bookworm, libhamlib4t64 na trixie zaradi t64 tranzicije)
+# apt samodejno potegne kot odvisnost — ni je treba navajati eksplicitno.
 apt-get install -y \
-  hamlib-utils \
+  libhamlib-utils \
   libhamlib-dev \
-  libhamlib4 \
   >> "$LOGFILE" 2>&1 && ok "Hamlib nameščen" || err "Hamlib — napaka"
 
 section "HAM Radio — WSJT-X (FT8, FT4, WSPR, JT65...)"
@@ -285,7 +287,7 @@ section "Security — Recon in OSINT"
 apt-get install -y \
   maltego \
   recon-ng \
-  theHarvester \
+  theharvester \
   dnsrecon \
   fierce \
   >> "$LOGFILE" 2>&1 \
